@@ -1,14 +1,11 @@
-use std::{fs::{metadata,  File, rename},thread::sleep, fmt::Debug, };
+use std::{fs::{metadata, rename}};
 use std::io;
 use rexif;
-
-
-use std::time::Duration as dur;
 use std::path::Path;
 
 fn change_name(path: String, recurse: bool)->std::io::Result<()>{
     //original file path
-    let mut opath = String::from(&path);
+    let opath = String::from(&path);
     let ppath = Path::new(&path);
     let md = metadata(&path)?;
 
@@ -18,12 +15,16 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
             if let Ok(entry) = entry {
                 match entry.path().to_str() {
                     Some(s)=>{
+                        //call function again on the file path 
+                        //will recurse if the new file path provided is also a folder
                         change_name(s.to_string(), recurse).expect("something went wrong for file: {s:?}");
                     }
                     None=>{
-                        println!("something went wrong getting the file name");
+                        println!("something went wrong getting the file path for the file: {:?}",entry.path());
                     }
                 }
+            }else{
+                println!("was not a valid file!");
             }
         }
     }else if md.is_file(){
@@ -31,7 +32,7 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
             Ok(exif) => {  
                 println!("renaming file: {:?}",opath);
                 let mut date_time_idx:usize = 0;
-                let mut entries = exif.entries;
+                let entries = exif.entries;
                 for entry in &entries{
                     if entry.tag.to_string().contains("Date of original image") {
                         break;
@@ -43,11 +44,9 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
                 date = date.replace(":", "-");
                 date = date.replace(" ", "-");
                 let mut new_path = String::from(&opath);
-                let mut file_index = 0;
                 match opath.rfind("/"){
                     Some(x)=>{
-                        file_index = x;
-                        new_path.truncate(file_index);
+                        new_path.truncate(x);
 
                     },None=>{
                         println!("could not find the last / in the files path");
@@ -55,7 +54,7 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
                 }
                 new_path +="/";
                 new_path += &date;
-                new_path +=".jpeg";
+                new_path +=".jpg";
                 rename(opath, new_path).expect("something went wrong when renaming the file!");
             }
             Err(e) => {
@@ -65,7 +64,7 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
         }
     }
     else if md.is_dir() && !recurse{
-        println!("You have not given program permission to recurse into sub-folders, but given path is a directory, please give either recursion perms or give a file path not directory path")
+        println!("You have not given program permission to recurse into sub-folders, but given a path which is a directory, please give either recursion permission or give a file path this is not directory path")
     }
     Ok(())
 }
@@ -80,12 +79,12 @@ fn take_name_input()->String{
 
         //remove \n character at end
         input.remove(input.len()-1);
-        println!("you entered: {:?}", input);
+        println!("you entered: {:?}\n", input);
         println!("Press Y to confirm or N to enter again");
         let mut confirm_input = String::new();
         stdin.read_line(&mut confirm_input).expect("something went wrong with the confirmation input");
         confirm_input.remove(confirm_input.len()-1);
-        if confirm_input == "Y" || confirm_input == "y" || confirm_input == "Yes"|| confirm_input == "yes"{
+        if confirm_input.contains("y"){
             ok = true;
         }else{
             input.clear();
@@ -96,9 +95,28 @@ fn take_name_input()->String{
     input
 }
 
+fn take_recurse_input()->bool{
+    let mut recurse = false;
+    let mut input:String = String::new();
+    println!("Would you like the program to recurse into directories and sub-directories? y/n");
+    let stdin = io::stdin();
+    stdin.read_line( &mut input).expect("something went wrong while reading input");
+    //remove \n character at end
+    input.remove(input.len()-1);
+    if input.contains("y") {
+        recurse = true;
+    }
+    recurse
+}
 
 fn main() { 
     println!("\ntime will be in UTC time not AEST\n");
-    change_name(take_name_input(), true).expect("something went wrong in main fn call");
+    match change_name(take_name_input(), take_recurse_input()) {
+        Ok(_)=>{
+            println!("Finished changing names to required format");
+        }Err(e)=>{
+            println!("change name function returned an error:\n{:?}",e);
+        }
+    }
     
 }

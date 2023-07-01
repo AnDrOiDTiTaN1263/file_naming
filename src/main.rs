@@ -1,31 +1,20 @@
-use std::{fs::{metadata, rename, File},thread::sleep};
+use std::{fs::{metadata,  File, rename},thread::sleep, fmt::Debug, };
 use std::io;
-use chrono::{prelude::{DateTime, Utc},  Duration};
+use rexif;
+
 
 use std::time::Duration as dur;
 use std::path::Path;
-fn iso8601(st: &std::time::SystemTime) -> String {
-    let mut dt: DateTime<Utc> = st.clone().into();
-    dt = dt + Duration::hours(10);
-    format!("{}", dt.format("%+"))
-    // formats like "2001-07-08T00:34:60.026490+09:30"
-}
-
-fn format_iso_time(mut s: String)->String{
-    s = s.replace("T", " ");
-    s.truncate(19);
-    s
-}
 
 fn change_name(path: String, recurse: bool)->std::io::Result<()>{
-    let opath = String::from(&path);
-    let mut mpath = String::from(&path);
+    //original file path
+    let mut opath = String::from(&path);
     let ppath = Path::new(&path);
     let md = metadata(&path)?;
 
     if  md.is_dir() && recurse{
         println!("found directory: starting recursion for all files and subfolders");
-        for entry in ppath.read_dir().expect("read_dir call failed") {
+        for entry in ppath.read_dir().expect("read_dir() call failed") {
             if let Ok(entry) = entry {
                 match entry.path().to_str() {
                     Some(s)=>{
@@ -38,39 +27,41 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
             }
         }
     }else if md.is_file(){
-        if let Ok(time) = md.created(){
-            let mut creation_time:String = iso8601(&time);
-            creation_time = format_iso_time(creation_time);
-            let file_extension = mpath.rfind(".");
-            println!("going from: {mpath:?}");
-            match file_extension {
-                Some(s)=>{
-                    let fe = mpath.split_off(s);
-                    let file_name_idx = mpath.rfind("/");
-                    match file_name_idx {
-                        Some(idx)=>{
-                            mpath.truncate(idx);
-                            mpath += "/";
-                            mpath +=  &creation_time;
-                            mpath += &fe;
-                            
-                            rename(opath, mpath).expect("something went wrong when renaming");
-
-                        }None=>{
-                            println!("file name index not found ");
-                        }
+        match rexif::parse_file(&opath) {
+            Ok(exif) => {  
+                println!("renaming file: {:?}",opath);
+                let mut date_time_idx:usize = 0;
+                let mut entries = exif.entries;
+                for entry in &entries{
+                    if entry.tag.to_string().contains("Date of original image") {
+                        break;
+                    }else {
+                        date_time_idx +=1;
                     }
-                }None=>{
-                    println!("Couldn't find the file extension!");
                 }
+                let mut date = String::from(&entries[date_time_idx].value_more_readable.to_string());
+                date = date.replace(":", "-");
+                date = date.replace(" ", "-");
+                let mut new_path = String::from(&opath);
+                let mut file_index = 0;
+                match opath.rfind("/"){
+                    Some(x)=>{
+                        file_index = x;
+                        new_path.truncate(file_index);
+
+                    },None=>{
+                        println!("could not find the last / in the files path");
+                    }
+                }
+                new_path +="/";
+                new_path += &date;
+                new_path +=".jpeg";
+                rename(opath, new_path).expect("something went wrong when renaming the file!");
             }
-            
-            
-
-        // rename(path, )
-
-        } else {
-            println!("Not supported on this platform or filesystem");
+            Err(e) => {
+                println!("Error in {}", &opath);
+                println!("{e:?}");
+            }
         }
     }
     else if md.is_dir() && !recurse{
@@ -78,17 +69,6 @@ fn change_name(path: String, recurse: bool)->std::io::Result<()>{
     }
     Ok(())
 }
-#[allow(unused)]
-fn create_test_files(number_of_files: i8){
-    for x in 0..number_of_files{
-        let mut path:String = String::from("src/test_files/");
-        path += &x.to_string();
-        path += ".test";
-        sleep(dur::from_millis(250));
-        File::create(path).expect("something went wrong");
-    }
-}
-
 
 fn take_name_input()->String{
     let mut ok:bool = false;
@@ -117,19 +97,8 @@ fn take_name_input()->String{
 }
 
 
-fn main() {
-    // create_test_files(3);
-    let mut recurse: bool = false;
-    let mut input:String = String::new();
-    println!("Would you like the function to recurse into sub folders?: Y/N ");
-    let stdin = io::stdin();
-    stdin.read_line( &mut input).expect("something went wrong while reading input");
-    input.remove(input.len()-1);
-    if input == "Y" || input == "y" || input == "Yes" || input == "yes"{
-        recurse = true;
-    }
-
-
-    change_name(take_name_input(), recurse).expect("something went wrong in main function call!");
+fn main() { 
+    println!("\ntime will be in UTC time not AEST\n");
+    change_name(take_name_input(), true).expect("something went wrong in main fn call");
     
 }

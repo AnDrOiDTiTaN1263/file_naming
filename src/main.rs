@@ -13,29 +13,6 @@ fn calc_date(dur:std::time::Duration)->String{
     date.replace("T", "-").replace(":", "-").replace(" ", "-").replace(".", "-")
 }
 
-fn make_file_path(date:String, original_path:String)->Option<String>{
-    let mut new_path:String = String::from(original_path);
-    
-    if let Some(sidx) = new_path.rfind("/"){
-        new_path.truncate(sidx);
-        new_path += "/";
-        new_path += &date;
-    }else{  
-        println!("Please enter a proper file path, not just a file name");
-        return None
-    }
-    Some(new_path + ".jpg")
-}
-
-/*
-
-
-    HashMap(date,vec<path>)
-    
-    create dir structure, year and sub folders of months
-    
-*/
-//done
 fn create_dir_structure(path_map: &HashMap<String, Vec<String>>, dest_file_path:String){
     if let Err(_) = read_dir(dest_file_path.clone()){
         //if the directory does not exist
@@ -229,7 +206,7 @@ fn main() {
     // change_name(take_name_input(), take_recurse_input());
     let dest_file_path:String = String::from("src/dest");
     println!("starting...");
-    let mut path_map = do_orig_files(String::from("src/orig_files"));
+    let path_map = do_orig_files(String::from("src/orig_files"));
     create_dir_structure(&path_map, dest_file_path.clone());
     copy_files(&path_map, dest_file_path.clone());
     

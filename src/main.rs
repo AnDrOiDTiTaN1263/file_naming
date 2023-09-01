@@ -4,6 +4,7 @@ use std::fs::{File, create_dir, read_dir, metadata, copy};
 use std::io::{BufReader, self};
 use chrono::Utc;
 use exif::{Reader, Tag, In};
+use std::env;
 
 fn calc_date(dur:std::time::Duration)->String{
     let mut today = Utc::now();
@@ -203,10 +204,13 @@ fn print_help(){
 fn main() { 
     println!("Using the kamadak-exif rust crate: https://crates.io/crates/kamadak-exif");
     println!("\ntime will be in UTC time not AEST\n");
-    // change_name(take_name_input(), take_recurse_input());
-    let dest_file_path:String = String::from("src/dest");
+    let args:Vec<String> = env::args().collect();
+    let orig_file_path:String = args[0].clone();
+    let dest_file_path:String = args[1].clone();
+
     println!("starting...");
-    let path_map = do_orig_files(String::from("src/orig_files"));
+
+    let path_map = do_orig_files(orig_file_path.clone());
     create_dir_structure(&path_map, dest_file_path.clone());
     copy_files(&path_map, dest_file_path.clone());
     

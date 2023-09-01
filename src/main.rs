@@ -139,7 +139,7 @@ fn copy_files(path_map: &HashMap<String, Vec<String>>, dest_file_path:String){
         }
         if v.len() >1 {
             for counter in 1..v.len(){
-                match  copy(v[0].clone(), resolve_dest_path(k.clone(), dest_file_path.clone())+&counter.to_string()+".jpg"){
+                match  copy(v[0].clone(), resolve_dest_path(k.clone(), dest_file_path.clone())+"-"+&counter.to_string()+".jpg"){
                     Ok(_)=>{
 
                     }Err(e)=>{

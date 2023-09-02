@@ -17,8 +17,10 @@ fn calc_date(dur:std::time::Duration)->String{
 fn create_dir_structure(path_map: &HashMap<String, Vec<String>>, dest_file_path:String){
     if let Err(_) = read_dir(dest_file_path.clone()){
         //if the directory does not exist
+        println!("destination directory does not exist, trying to create it...");
         create_dir(dest_file_path.clone()).unwrap();
         create_dir_structure(path_map, dest_file_path.clone());
+
     }
     for entry in path_map{
         let mut n_date = String::from(entry.0);
@@ -100,7 +102,6 @@ fn get_file_date(path:String)->String{
                             ret = ret.replace(":", "-").replace(" ", "-");
                         }
                         None=>{
-                            println!("no date filed found in exif data!, going to creation time");
                             ret = calc_date(file.metadata().unwrap().created().unwrap().elapsed().unwrap());
                             ret = ret.replace(":", "-").replace(" ", "-");
                         }
@@ -125,7 +126,7 @@ fn resolve_dest_path(path:String, dest_file_path:String)->String{
     ret +="/";
     ret += &path[5..7];
     ret +="/";
-    ret += &path[8..];
+    ret += &path;
     ret
 }
 
@@ -205,15 +206,21 @@ fn main() {
     println!("Using the kamadak-exif rust crate: https://crates.io/crates/kamadak-exif");
     println!("\ntime will be in UTC time not AEST\n");
     let args:Vec<String> = env::args().collect();
-    let orig_file_path:String = args[0].clone();
-    let dest_file_path:String = args[1].clone();
+    if args.len() == 1 {
+        println!("please enter the source and destination file paths in the command line");
+    }else{
+        let orig_file_path:String = args[1].clone();
+        println!("got: {}",orig_file_path.clone());
+        let dest_file_path:String = args[2].clone();
+        println!("will copy over to: {}",dest_file_path.clone());
 
-    println!("starting...");
+        println!("starting...");
 
-    let path_map = do_orig_files(orig_file_path.clone());
-    create_dir_structure(&path_map, dest_file_path.clone());
-    copy_files(&path_map, dest_file_path.clone());
-    
-    
-    println!("finished");
+        let path_map = do_orig_files(orig_file_path.clone());
+        create_dir_structure(&path_map, dest_file_path.clone());
+        copy_files(&path_map, dest_file_path.clone());
+        
+        
+        println!("finished");
+    }
 }

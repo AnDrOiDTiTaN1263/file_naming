@@ -16,7 +16,7 @@ fn calc_date(dur:std::time::Duration)->String{
 
 fn create_dir_structure(path_map: &HashMap<String, Vec<String>>, dest_file_path:String){
     if let Err(_) = read_dir(dest_file_path.clone()){
-        //if the directory does not exist
+        //if the destination directory does not exist
         println!("destination directory does not exist, trying to create it...");
         create_dir(dest_file_path.clone()).unwrap();
         create_dir_structure(path_map, dest_file_path.clone());
@@ -71,19 +71,24 @@ fn do_orig_files(path:String)->HashMap<String, Vec<String>>{
     let mut ret:HashMap<String, Vec<String>> = HashMap::new();
     let md = metadata(String::from(&path)).unwrap();
     if md.is_dir(){
-    
         //sort files here
         let dir = read_dir(String::from(&path)).unwrap();
         for dir_res in dir{
-            let path = String::from(dir_res.unwrap().path().to_str().unwrap());
-            let file_date = get_file_date(path.clone());
-            append_to_vec(&mut ret, file_date, path.clone());
+            let dir_res = dir_res.unwrap();
+            let md = dir_res.metadata().unwrap();
+            if md.is_dir(){
+                //recurse 
+                ret.extend(do_orig_files(String::from(dir_res.path().to_str().unwrap())));
+            }else{
+                let path = String::from(dir_res.path().to_str().unwrap());
+                let file_date = get_file_date(path.clone());
+                append_to_vec(&mut ret, file_date, path.clone());
+            }
         }   
     }else{
         //if there's only 1 file we don't really want to check anything and just copy it over
-        get_file_date(String::from(&path));
-        // create_dir_structure(&ret, dest_file_path);
-
+        
+        append_to_vec(&mut ret, get_file_date(String::from(&path)), path.clone());
     }
     return ret;
 }
@@ -127,20 +132,24 @@ fn resolve_dest_path(path:String, dest_file_path:String)->String{
     ret += &path[5..7];
     ret +="/";
     ret += &path;
+    println!("{ret:?}.jpg");
     ret
 }
 
 fn copy_files(path_map: &HashMap<String, Vec<String>>, dest_file_path:String){
     for (k,v) in path_map{
+        println!("v[0]={:?}; destination path resolved as: {:?}",v[0].clone(),resolve_dest_path(k.clone(), dest_file_path.clone())+".jpg");
+        //only do the first file
         match copy(v[0].clone(),resolve_dest_path(k.clone(), dest_file_path.clone())+".jpg"){
             Ok(_)=>{
 
             }Err(e)=>{
-                println!("encountered error: {e:?}");
+                println!("encountered error whilst copying: {e:?}");
             }
         }
         if v.len() >1 {
             for counter in 1..v.len(){
+                //copy the files over given the counter i.e. path_to_dest_folder/yyyy/mm/yyyy-mm-dd-hh-mm-ss-c.jpg
                 match  copy(v[0].clone(), resolve_dest_path(k.clone(), dest_file_path.clone())+"-"+&counter.to_string()+".jpg"){
                     Ok(_)=>{
 
@@ -152,6 +161,7 @@ fn copy_files(path_map: &HashMap<String, Vec<String>>, dest_file_path:String){
         }
     }
 }
+
 #[allow(unused)]
 fn take_name_input()->String{
     let mut ok:bool = false;
@@ -178,6 +188,7 @@ fn take_name_input()->String{
 
     input
 }
+
 #[allow(unused)]
 fn take_recurse_input()->bool{
     let mut recurse = false;
@@ -192,6 +203,7 @@ fn take_recurse_input()->bool{
     }
     recurse
 }
+
 #[allow(unused)]
 fn print_help(){
     println!("the program expects 2 command line arguments, they are:");
@@ -217,8 +229,11 @@ fn main() {
         println!("starting...");
 
         let path_map = do_orig_files(orig_file_path.clone());
+        println!("finished getting new filepaths...\nstarting to create directories needed");
         create_dir_structure(&path_map, dest_file_path.clone());
+        println!("finished creating the directories needed... \nstarting the copying process...");
         copy_files(&path_map, dest_file_path.clone());
+
         
         
         println!("finished");
